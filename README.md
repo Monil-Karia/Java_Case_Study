@@ -52,6 +52,52 @@ The System is a Java-based application designed for managing books and members i
 **Key Methods:**
 - `main(String[] args)`: Starts the application and manages user input.
 
+## Database Schema
+
+The application uses the following database tables:
+
+### `Members`
+
+**Description:**
+- Stores information about library members.
+
+**Columns:**
+- `ID NUMBER PRIMARY KEY`: Unique identifier for each member.
+- `Name VARCHAR2(100) UNIQUE`: Name of the member (must be unique).
+- `BookIssued VARCHAR2(100)`: The book currently issued to the member (can be null).
+- `MembershipStartDate DATE`: Date when the membership started.
+- `MembershipEndDate DATE`: Date when the membership will end.
+
+### `Books`
+
+**Description:**
+- Stores information about books available in the library.
+
+**Columns:**
+- `ID NUMBER PRIMARY KEY`: Unique identifier for each book.
+- `Name VARCHAR2(100) UNIQUE`: Name of the book (must be unique).
+- `MemberName VARCHAR2(100)`: Name of the member to whom the book is currently issued (can be null).
+- `NumberOfMembershipDays NUMBER`: Number of days for which the book can be issued (can be null).
+
+**Constraints:**
+- `FOREIGN KEY (MemberName) REFERENCES Members(Name)`: Ensures that the `MemberName` exists in the `Members` table.
+
+### `Admin`
+
+**Description:**
+- Stores information about the book issuance and management by admins.
+
+**Columns:**
+- `ID NUMBER PRIMARY KEY`: Unique identifier for each admin record.
+- `BookName VARCHAR2(100)`: Name of the book being managed.
+- `MemberName VARCHAR2(100)`: Name of the member to whom the book is issued.
+- `IssueStart DATE`: Start date of the book issuance.
+- `IssueEnd DATE`: End date of the book issuance.
+
+**Constraints:**
+- `FOREIGN KEY (BookName) REFERENCES Books(Name)`: Ensures that the `BookName` exists in the `Books` table.
+- `FOREIGN KEY (MemberName) REFERENCES Members(Name)`: Ensures that the `MemberName` exists in the `Members` table.
+
 ## Requirements
 
 1. **Java Development Kit (JDK)**: JDK 8 or higher.
