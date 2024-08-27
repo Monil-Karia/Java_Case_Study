@@ -13,7 +13,7 @@ public class testing{
     }
 
     // Create database tables
-    private static void createTables(Connection conn) throws SQLException {
+    private static void createTables(Connection conn) throws SQLException{
         String[] sqlStatements = {
                 "CREATE TABLE Members (" +
                         "ID NUMBER PRIMARY KEY, " +
@@ -45,6 +45,16 @@ public class testing{
                         "CONSTRAINT fk_member_admin " +
                         "FOREIGN KEY (MemberName) " +
                         "REFERENCES Members(Name)" +
+                        ")",
+
+                "CREATE TABLE AdminUsers (" +
+                        "Username VARCHAR2(100) PRIMARY KEY, " +
+                        "Password VARCHAR2(100) NOT NULL" +
+                        ")",
+
+                "CREATE TABLE MemberUsers (" +
+                        "Username VARCHAR2(100) PRIMARY KEY, " +
+                        "Password VARCHAR2(100) NOT NULL" +
                         ")"
         };
         try (Statement stmt = conn.createStatement()) {
@@ -63,6 +73,44 @@ public class testing{
         }
     }
 
+    private static void addUser(Connection conn, Scanner scanner, String tableName) throws SQLException {
+        System.out.print("Enter Username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter Password: ");
+        String password = scanner.nextLine();
+
+        String sql = "INSERT INTO " + tableName + " (Username, Password) VALUES (?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            stmt.executeUpdate();
+            System.out.println("User added successfully.");
+        }
+    }
+
+    private static boolean authenticateUser(Connection conn, Scanner scanner, String tableName) throws SQLException {
+        System.out.print("Enter Username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter Password: ");
+        String password = scanner.nextLine();
+
+        String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE Username = ? AND Password = ? ";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            System.out.println("Table Name: " + tableName);
+            System.out.println("Username: " + username);
+            System.out.println("Password: " + password);
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                } else {
+                    System.out.println("Invalid username or password.");
+                    return false;
+                }
+            }
+        }
+    }
     // Add a new member
     private static void addMember(Connection conn, Scanner scanner) throws SQLException {
         System.out.print("Enter Member ID: ");
@@ -153,69 +201,58 @@ public class testing{
     }
 
     // Add or delete a member
-    private static void addOrDeleteMember(Connection conn, Scanner scanner) throws SQLException {
-        System.out.println("1. Add Member");
-        System.out.println("2. Delete Member");
-        int choice = scanner.nextInt();
-        scanner.nextLine();
+    private static void deleteMember(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("Enter Member Name to delete: ");
+        String name = scanner.nextLine();
 
-        if (choice == 1) {
-            addMember(conn, scanner);
-        } else if (choice == 2) {
-            System.out.print("Enter Member Name to delete: ");
-            String name = scanner.nextLine();
-
-            // Check for references in Books and Admin
-            String checkBooksSQL = "SELECT COUNT(*) FROM Books WHERE MemberName = ?";
-            int bookCount;
-            try (PreparedStatement stmt = conn.prepareStatement(checkBooksSQL)) {
-                stmt.setString(1, name);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        bookCount = rs.getInt(1);
-                    } else {
-                        System.out.println("Error checking books.");
-                        return;
-                    }
-                }
-            }
-
-            if (bookCount > 0) {
-                System.out.println("Member has issued books. Please return or reassign the books before deleting the member.");
-                return;
-            }
-
-            String checkAdminSQL = "SELECT COUNT(*) FROM Admin WHERE MemberName = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(checkAdminSQL)) {
-                stmt.setString(1, name);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        bookCount = rs.getInt(1);
-                    } else {
-                        System.out.println("Error checking admin.");
-                        return;
-                    }
-                }
-            }
-
-            if (bookCount > 0) {
-                System.out.println("Member is referenced in the Admin table. Please update the records before deleting the member.");
-                return;
-            }
-
-            // Delete the member if no references are found
-            String sql = "DELETE FROM Members WHERE Name = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, name);
-                int rowsAffected = stmt.executeUpdate();
-                if (rowsAffected > 0) {
-                    System.out.println("Member deleted successfully.");
+        // Check for references in Books and Admin
+        String checkBooksSQL = "SELECT COUNT(*) FROM Books WHERE MemberName = ?";
+        int bookCount;
+        try (PreparedStatement stmt = conn.prepareStatement(checkBooksSQL)) {
+            stmt.setString(1, name);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    bookCount = rs.getInt(1);
                 } else {
-                    System.out.println("Member not found.");
+                    System.out.println("Error checking books.");
+                    return;
                 }
             }
-        } else {
-            System.out.println("Invalid choice.");
+        }
+
+        if (bookCount > 0) {
+            System.out.println("Member has issued books. Please return or reassign the books before deleting the member.");
+            return;
+        }
+
+        String checkAdminSQL = "SELECT COUNT(*) FROM Admin WHERE MemberName = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(checkAdminSQL)) {
+            stmt.setString(1, name);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    bookCount = rs.getInt(1);
+                } else {
+                    System.out.println("Error checking admin.");
+                    return;
+                }
+            }
+        }
+
+        if (bookCount > 0) {
+            System.out.println("Member is referenced in the Admin table. Please update the records before deleting the member.");
+            return;
+        }
+
+        // Delete the member if no references are found
+        String sql = "DELETE FROM Members WHERE Name = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Member deleted successfully.");
+            } else {
+                System.out.println("Member not found.");
+            }
         }
     }
 
@@ -350,32 +387,31 @@ public class testing{
 
     // Main menu
     private static void menu() {
-        System.out.println("1. Members Menu");
-        System.out.println("2. Admin Menu");
+        System.out.println("1. Login as Admin");
+        System.out.println("2. Login as Member");
         System.out.println("3. Exit");
     }
 
     // Members menu
     private static void membersMenu(Connection conn, Scanner scanner) throws SQLException {
-        System.out.println("1. Add Member");
-        System.out.println("2. Show All Members");
-        System.out.println("3. Back to Main Menu");
-        int choice = scanner.nextInt();
-        scanner.nextLine();
+        while (true) {
+            System.out.println("1. Show All Members");
+            System.out.println("2. Logout");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
 
-        switch (choice) {
-            case 1:
-                addMember(conn, scanner);
-                break;
-            case 2:
-                showAllMembers(conn);
-                break;
-            case 3:
-                return;
-            default:
-                System.out.println("Invalid choice.");
+            switch (choice) {
+                case 1:
+                    showAllMembers(conn);
+                    break;
+                case 2:
+                    return;
+                default:
+                    System.out.println("Invalid choice.");
+            }
         }
     }
+
 
     // Review all tables
     private static void reviewTables(Connection conn) throws SQLException {
@@ -417,12 +453,15 @@ public class testing{
             System.out.println("2. Delete Book");
             System.out.println("3. Issue/Reissue Book");
             System.out.println("4. Get Books Issued by a Member");
-            System.out.println("5. Add/Delete Member");
-            System.out.println("6. Get Total Books Info");
-            System.out.println("7. Days Remaining for a Book");
-            System.out.println("8. Review All Tables");
-            System.out.println("9. Create Tables");
-            System.out.println("10. Back to Main Menu");
+            System.out.println("5. Add Member");
+            System.out.println("6. Delete Member");
+            System.out.println("7. Add Admin User");
+            System.out.println("8. Add Member User");
+            System.out.println("9. Get Total Books Info");
+            System.out.println("10. Days Remaining for a Book");
+            System.out.println("11. Review All Tables");
+            System.out.println("12. Create Tables");
+            System.out.println("13. Logout");
             int choice = scanner.nextInt();
             scanner.nextLine();
 
@@ -440,21 +479,30 @@ public class testing{
                     getBooksIssuedByMember(conn, scanner);
                     break;
                 case 5:
-                    addOrDeleteMember(conn, scanner);
+                    addMember(conn, scanner);
                     break;
                 case 6:
-                    getTotalBooksInfo(conn);
+                    deleteMember(conn, scanner);
                     break;
                 case 7:
-                    daysRemainingForBook(conn, scanner);
+                    addUser(conn, scanner, "AdminUsers");
                     break;
                 case 8:
-                    reviewTables(conn);
+                    addUser(conn, scanner, "MemberUsers");
                     break;
                 case 9:
-                    createTables(conn);
+                    getTotalBooksInfo(conn);
                     break;
                 case 10:
+                    daysRemainingForBook(conn, scanner);
+                    break;
+                case 11:
+                    reviewTables(conn);
+                    break;
+                case 12:
+                    createTables(conn);
+                    break;
+                case 13:
                     return;
                 default:
                     System.out.println("Invalid choice.");
@@ -472,10 +520,14 @@ public class testing{
 
                 switch (choice) {
                     case 1:
-                        membersMenu(conn, scanner);
+                        if (authenticateUser(conn, scanner, "ADMINUSERS")) {
+                            adminMenu(conn, scanner);
+                        }
                         break;
                     case 2:
-                        adminMenu(conn, scanner);
+                        if (authenticateUser(conn, scanner, "MEMBERUSERS")) {
+                            membersMenu(conn, scanner);
+                        }
                         break;
                     case 3:
                         System.out.println("Exiting...");
